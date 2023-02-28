@@ -10,8 +10,25 @@ import psutil
 import requests
 from bs4 import BeautifulSoup
 import webbrowser
+from datetime import datetime
+import time
+import os
+import threading
+from googletrans import Translator
 
-import googletrans
+
+def shutdown_PK(text = str, waiting_time=100):
+    minuta = 0
+    key_value = {"key_value": ['выключи', 'выключение']}
+    text = text.split()
+    if text != key_value:
+        return ''
+    while minuta < waiting_time:
+        time.sleep(60)
+        minuta += 1
+    os.system('shutdown -s')
+    potok = threading.Thread(target=shutdown_PK, args=waiting_time)
+    return potok.start()
 
 answer = ''
 
@@ -84,40 +101,26 @@ def hi_goodby(text):
     return answer != ""
 
 # функция выдает погоду на день по городу Москва
-def current_weather(s_city = 'Moscow,RU'):
-
+def current_weather(appid, s_city = 'Moscow,RU', Ru_siti=''):
     city_id = 0
-    # указать полученый API-ключ отсайта
-    appid = 'ecf8f7c99b22ef5a327aa9d6f296cc4c'
-
     # проверка на существование грода и его ID
     try:
         res = requests.get('http://api.openweathermap.org/data/2.5/find',
                            params={'q': s_city, 'type': 'like', 'units': 'metric', 'APPID': appid})
         data = res.json()
-        '''
-        for d in data['list']:
-            print(d)
-            print()
-        print()
-        '''
-        # cities = ['Город: {} Страна: {}'.format(d['name'], d['sys']['country']) for d in data['list']]
-        # print('города:', cities)
         city_id = data['list'][0]['id']
-        # print('ID города:', city_id)
     except Exception as e:
-        print('Ошибка (поиска):', e)
-        return 'данный город не известен'
 
+        return 'данный город не известен'
 
     # получение текущей температуры по городу
 
     try:
         res = requests.get('http://api.openweathermap.org/data/2.5/weather',
-               params = {'id': city_id, 'units': 'metric', 'long': 'ru', 'APPID': appid})
+               params = {'id': city_id, 'units': 'metric', 'lang': 'ru', 'APPID': appid})
         data = res.json()
         #print(res)
-        result = "Погода по городу " + s_city.split(',')[0] +  ' температура :' + str(data['main']['temp']) \
+        result = "Погода по городу " + Ru_siti + ' температура :' + str(data['main']['temp']) \
                + ' максимальная температура :'+ str(data['main']['temp_max']) \
                + ' минммальная температура :' + str(data['main']['temp_min']) \
                + ' осодки :' + str(data['weather'][0]['description'])
@@ -126,25 +129,105 @@ def current_weather(s_city = 'Moscow,RU'):
     return result
 
     
-    # получение температуры по городу на 5 дней
+# получение температуры по городу на 5 дней
+def weather_on_5_day(appid, s_city = 'Moscow,RU', Ru_siti=''):
+      # проверка на существование грода и его ID
+    try:
+        res = requests.get('http://api.openweathermap.org/data/2.5/find',
+                           params={'q': s_city, 'type': 'like', 'units': 'metric', 'APPID': appid})
+        data = res.json()
+        city_id = data['list'][0]['id']
+    except Exception as e:
+       return 'данный город не известен'
+
     try:
         res = requests.get('http://api.openweathermap.org/data/2.5/forecast',
                            params={'id': city_id, 'units': 'metric', 'long': 'ru', 'APPID': appid})
         data = res.json()
-        
-        #print()
-        #print(data)
 
+        result = "Погода по городу " + Ru_siti + ' температура :'
         for i in data['list']:
-            print(i['dt_txt'], 'Температура: {0:+3.0f}'.format(i['main']['temp']), i['weather'][0]['description'])
+            result += i['dt_txt'] + ' Температура: {0:+3.0f}'.format(i['main']['temp']) + ' ' + i['weather'][0]['description'] + "\n"
     
     except Exception as e:
         print('Ошибка (поиска):', e)
+    return result
+
+# погода на 5 дней краткая
+def weather_on_5_day_briefly(appid, s_city='Moscow,RU', Ru_siti=''):
+    # проверка на существование грода и его ID
+    try:
+        res = requests.get('http://api.openweathermap.org/data/2.5/find',
+                           params={'q': s_city, 'type': 'like', 'units': 'metric', 'APPID': appid})
+        data = res.json()
+        city_id = data['list'][0]['id']
+    except Exception as e:
+        return 'данный город не известен'
+
+    try:
+        res = requests.get('http://api.openweathermap.org/data/2.5/forecast',
+                           params={'id': city_id, 'units': 'metric', 'lang': 'ru', 'APPID': appid})
+        data = res.json()
+        count = 0
+        summ = 0
+        result = "Погода по городу " + Ru_siti + ' температура :'
+        count_1 = True
+        for i in data['list']:
+                tame = i['dt_txt'].split()
+
+                if tame[1] == '00:00:00':
+                    if count_1 == True:
+                        tame_1 = tame[0]
+
+                    summ = summ/count
+                    result += tame_1 + ' Температура: {0:+3.0f}'.format(summ) + ' ' + i['weather'][0][
+                'description'] + "\n"
+                    count = 0
+                    summ = 0
+                summ += i['main']['temp']
+                count += 1
+                tame_1 = tame[0]
+                count_1 = False
+
+    except Exception as e:
+        print('Ошибка (поиска):', e)
+    return result
+
+
+# погода на один день расширенная(каждые 3 часа)
+def weather_on_1_day_extended(appid, s_city='Moscow,RU', Ru_siti=''):
+    # проверка на существование грода и его ID
+    try:
+        res = requests.get('http://api.openweathermap.org/data/2.5/find',
+                           params={'q': s_city, 'type': 'like', 'units': 'metric', 'APPID': appid})
+        data = res.json()
+        city_id = data['list'][0]['id']
+    except Exception as e:
+        return 'данный город не известен'
+
+    try:
+        res = requests.get('http://api.openweathermap.org/data/2.5/forecast',
+                           params={'id': city_id, 'units': 'metric', 'long': 'ru', 'APPID': appid})
+        data = res.json()
+
+        result = "Погода по городу " + Ru_siti + ' температура :'
+        for i in data['list']:
+            tame = i['dt_txt'].split()[1]
+            if tame == '00:00:00':
+                break
+            result += i['dt_txt'] + ' Температура: {0:+3.0f}'.format(i['main']['temp']) + ' ' + i['weather'][0][
+                'description'] + "\n"
+
+    except Exception as e:
+        print('Ошибка (поиска):', e)
+    return result
+
 
 def weather(text):
     global answer
     answer = ''
     text = text.split()
+    text[1]= text[1][0].upper()+text[1][1::]
     if text[0] != 'погода':
         return False
     # перевдем название города русского языка на наглийский
@@ -153,20 +236,31 @@ def weather(text):
     # dest - язык на кокой переводи(по умолчанию английский)
     # origin  - текст , который необходимо превести
     # создадим объект для переводчка
-    trans = googletrans.Translator()
+    trans = Translator()
     # произведем перевод
     print(text[1])
-    name_syti = trans.translate(text="Иваново")
+    name_syti = trans.translate(text[1])
     print(name_syti)
-    answer = current_weather(name_syti + ',RU')
+    # указать полученый API-ключ отсайта
+    appid = 'ecf8f7c99b22ef5a327aa9d6f296cc4c'
+    new_taxt = ' '.join(text[2::])
+    if new_taxt == 'на один день':
+        answer = current_weather(appid, name_syti.text + ',RU', text[1])
+    elif new_taxt == 'на пять дней':
+        answer = weather_on_5_day(appid, name_syti.text + ',RU', text[1])
+    elif new_taxt == "на один день расширенная":
+        answer = weather_on_1_day_extended(appid, name_syti.text + ',RU', text[1])
+    elif new_taxt == 'на пять дней кратко':
+        answer = weather_on_5_day_briefly(appid, name_syti.text + ',RU', text[1])
+    current_date = datetime.now()
+    current_date = str(current_date).split('.')[0]
+    current_date = current_date.replace(':','_')
+    # запишем данные в файл (параметр 'w' указывает на перезщапись файла, если паратмтер 'a' - дозапись файла(добавление новой записи в документ))
+    with open('Погода\Погода ' + text[1]+ " "  + current_date +'.txt', 'w') as file:
+        file.write(answer)
     return answer != ''
-    """
-    if answer == '': 
-        return False
-    else:
-        return True
-    """
-# ф-ция обработки текста и выделения из них команд
+
+    # ф-ция обработки текста и выделения из них команд
 def comands(text):
 
     if hi_goodby(text) or weather(text) or play_file(text) or goole_search(text):
@@ -240,7 +334,7 @@ def goole_search(name_search=''):
     print(name_search)
     if name_search[0] != 'онлайн':
         return False
-    name_search = ''.join(name_search[1:len(name_search)])
+    name_search = ' '.join(name_search[1:len(name_search)])
     print(name_search)
     name_search = name_search.replace(" ", "+")
     url = f"http://www.google.com/search?q={name_search}"
@@ -284,7 +378,7 @@ def recognize_speech():
         try:
             print("скажите команду: ")
             # получим данные с миукрофона ввиде аудиопересменной
-            audio = recognizer.listen(microphon, 5,5)
+            audio = recognizer.listen(microphon, 2,2)
         except Exception as ex:
             print('ошибка : ', ex)
             return ''
@@ -292,14 +386,20 @@ def recognize_speech():
         data = recognizer.recognize_google(audio, language= 'ru')
         return data.lower()
 
-#weather('погода Иваново')
-#engin = init_engine()
+#weather('погода Билибино на пять дней кратко' )
+#print(answer)
+#goole_search('онлайн Дом')
+#print(answer)
+'''
+engin = init_engine()
 #sound(engin, "Привет , как у тебя дела, какая у тебя дома погода и сколько тебе лет")
 #print(googletrans.LANGUAGES)
-
+'''
 while True:
     text = recognize_speech()
     comands(text)
+'''    
+'''
 
 
 #play_file('файл текст виктор')
