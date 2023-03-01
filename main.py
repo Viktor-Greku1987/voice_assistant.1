@@ -350,9 +350,7 @@ def goole_search(name_search=''):
         anchors = g.find_all("a")
         if anchors:
             link = anchors[0]["href"]
-            #print(link)
             title = g.find("h3").text
-            #print(title)
             item = {"title": title, "link": link}
             result_url.append(item)
     # откроем первую из найденных ссылок в браузере
